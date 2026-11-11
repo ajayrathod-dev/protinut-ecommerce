@@ -1,0 +1,488 @@
+<?php
+require_once 'connection.php';
+if (!isset($_SESSION['user_id'])) {
+    header('Location: login.php');
+    exit();
+}
+
+$user_id = (int) $_SESSION['user_id'];
+$user_res = mysqli_query($link, "SELECT * FROM users WHERE id = $user_id");
+$user = mysqli_fetch_assoc($user_res);
+
+include 'header.php';
+
+// Initialize total
+$total = 0;
+if (!isset($_SESSION['cart'])) {
+    $_SESSION['cart'] = [];
+}
+foreach ($_SESSION['cart'] as $item) {
+    $total += $item['price'] * $item['quantity'];
+}
+?>
+
+<!-- main area start  -->
+<main>
+    <!-- breadcrumb start -->
+    <section class="breadcrumb position-bottom bg_img" data-background="assets/img/bg/page_title.png">
+        <div class="container">
+            <div class="breadcrumb__content text-center">
+                <h2 class="breadcrumb__title">Checkout</h2>
+                <ul class="breadcrumb__list clearfix">
+                    <li class="breadcrumb-item"><a href="index.php">Protinut</a></li>
+                    <li class="breadcrumb-item">Checkout</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+    <!-- breadcrumb end -->
+
+    <!-- start checkout-section -->
+    <section class="checkout-section pt-115 pb-385">
+        <div class="container">
+            <div class="row">
+                <div class="col col-xs-12">
+                    <div class="woocommerce">
+                        <form name="checkout" method="post" class="checkout woocommerce-checkout"
+                            action="checkout_action.php">
+                            
+                            <div class="address-selection-wrap mb-4" style="background: #fff; padding: 25px; border-radius: 12px; border: 1px solid #eee; margin-bottom: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                <h4 style="font-size: 20px; margin-bottom: 20px; color: #060606; font-weight: 700; border-left: 4px solid #f7941d; padding-left: 15px;">Shipping Preference</h4>
+                                <div style="display: flex; gap: 40px; flex-wrap: wrap;">
+                                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 600; font-size: 16px; color: #333;">
+                                        <input type="radio" name="address_option" value="saved" checked style="width: 20px; height: 20px; accent-color: #f7941d;"> Use Saved Address
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 12px; cursor: pointer; font-weight: 600; font-size: 16px; color: #333;">
+                                        <input type="radio" name="address_option" value="custom" style="width: 20px; height: 20px; accent-color: #f7941d;"> Enter Custom Address
+                                    </label>
+                                </div>
+                            </div>
+
+                            <?php
+                            $full_name = $user['name'] ?? '';
+                            $parts = explode(' ', trim($full_name));
+                            $f_name = $parts[0] ?? '';
+                            $l_name = count($parts) > 1 ? implode(' ', array_slice($parts, 1)) : '';
+                            ?>
+
+                            <div class="col2-set" id="customer_details"
+                                style="display:flex; flex-wrap:wrap; gap:30px; margin-bottom: 40px;">
+                                <div class="coll-1" style="flex:1; min-width: 300px;">
+                                    <div class="woocommerce-billing-fields">
+                                        <h3
+                                            style="margin-bottom: 20px; font-size: 24px; border-bottom: 2px solid #f7941d; padding-bottom: 10px;">
+                                            Billing Details</h3>
+                                        <p class="form-row form-row form-row-first validate-required">
+                                            <label>First Name <abbr class="required" style="color:red;">*</abbr></label>
+                                            <input type="text" class="input-text" name="billing_first_name" required
+                                                value="<?php echo htmlspecialchars($f_name); ?>"
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;" />
+                                        </p>
+                                        <p class="form-row form-row form-row-last validate-required">
+                                            <label>Last Name <abbr class="required" style="color:red;">*</abbr></label>
+                                            <input type="text" class="input-text" name="billing_last_name" required
+                                                value="<?php echo htmlspecialchars($l_name); ?>"
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;" />
+                                        </p>
+                                        <p class="form-row form-row form-row-wide validate-required validate-email">
+                                            <label>Email Address <abbr class="required"
+                                                    style="color:red;">*</abbr></label>
+                                            <input type="email" class="input-text" name="billing_email" required
+                                                value="<?php echo htmlspecialchars($user['email'] ?? ''); ?>"
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;" />
+                                        </p>
+                                        <p class="form-row form-row form-row-wide validate-required validate-phone">
+                                            <label>Phone <abbr class="required" style="color:red;">*</abbr></label>
+                                            <input type="tel" class="input-text" name="billing_phone" required
+                                                value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>"
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;" />
+                                        </p>
+                                        <p class="form-row form-row form-row-wide validate-required">
+                                            <label>Country <abbr class="required" style="color:red;">*</abbr></label>
+                                            <select name="billing_country" id="billing_country" class="country_to_state country_select"
+                                                required
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;">
+                                                <option value="">Select a country...</option>
+                                                <option value="US" <?php echo (($user['country'] ?? '') == 'US') ? 'selected' : ''; ?>>United States</option>
+                                                <option value="UK" <?php echo (($user['country'] ?? '') == 'UK') ? 'selected' : ''; ?>>United Kingdom</option>
+                                                <option value="CA" <?php echo (($user['country'] ?? '') == 'CA') ? 'selected' : ''; ?>>Canada</option>
+                                                <option value="IN" <?php echo (($user['country'] ?? '') == 'IN' || !isset($user['country'])) ? 'selected' : ''; ?>>India</option>
+                                            </select>
+                                        </p>
+                                        <p class="form-row form-row form-row-wide validate-required">
+                                            <label>Street Address <abbr class="required"
+                                                    style="color:red;">*</abbr></label>
+                                            <input type="text" class="input-text" name="billing_address_1"
+                                                value="<?php echo htmlspecialchars($user['address'] ?? ''); ?>"
+                                                placeholder="House number and street name" required
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;" />
+                                        </p>
+                                        <p class="form-row form-row form-row-wide validate-required">
+                                            <label>Town / City <abbr class="required"
+                                                    style="color:red;">*</abbr></label>
+                                            <input type="text" class="input-text" name="billing_city" required
+                                                value="<?php echo htmlspecialchars($user['city'] ?? ''); ?>"
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:15px;" />
+                                        </p>
+                                        <p class="form-row form-row form-row-wide validate-required validate-postcode">
+                                            <label>Postcode / ZIP <abbr class="required"
+                                                    style="color:red;">*</abbr></label>
+                                            <input type="text" class="input-text" name="billing_postcode" required
+                                                value="<?php echo htmlspecialchars($user['postcode'] ?? ''); ?>"
+                                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:4px; margin-bottom:20px;" />
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h3 id="order_review_heading"
+                                style="font-size: 24px; border-bottom: 2px solid #f7941d; padding-bottom: 10px; margin-bottom:20px;">
+                                Your order</h3>
+                            <div id="order_review" class="woocommerce-checkout-review-order"
+                                style="background:#f9f9f9; padding:30px; border-radius:8px; border:1px solid #eee;">
+                                <table class="shop_table woocommerce-checkout-review-order-table" style="width:100%;">
+                                    <thead>
+                                        <tr style="border-bottom:1px solid #ddd; text-align:left;">
+                                            <th class="product-name" style="padding:15px 0;">Product</th>
+                                            <th class="product-total" style="padding:15px 0; text-align:right;">Total
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($_SESSION['cart'])): ?>
+                                            <tr>
+                                                <td colspan="2" style="padding:20px 0;text-align:center;">Your cart is
+                                                    empty.</td>
+                                            </tr>
+                                        <?php else: ?>
+                                            <?php foreach ($_SESSION['cart'] as $item): ?>
+                                                <tr class="cart_item" style="border-bottom:1px dashed #ddd;">
+                                                    <td class="product-name" style="padding:15px 0;">
+                                                        <?php echo htmlspecialchars($item['name']); ?>&nbsp; <strong
+                                                            class="product-quantity">&times;
+                                                            <?php echo $item['quantity']; ?></strong>
+                                                    </td>
+                                                    <td class="product-total" style="text-align:right; padding:15px 0;">
+                                                        <span class="woocommerce-Price-amount amount"><span
+                                                                class="woocommerce-Price-currencySymbol">₹</span><?php echo number_format($item['price'] * $item['quantity'], 2); ?></span>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="cart-subtotal" style="border-bottom:1px dashed #ddd;">
+                                            <th style="padding:15px 0;">Subtotal</th>
+                                            <td style="text-align:right; padding:15px 0;"><span
+                                                    class="woocommerce-Price-amount amount"><span
+                                                        class="woocommerce-Price-currencySymbol">₹</span><?php echo number_format($total, 2); ?></span>
+                                            </td>
+                                        </tr>
+                                        <tr class="shipping" style="border-bottom:1px dashed #ddd;">
+                                            <th style="padding:15px 0;">Shipping</th>
+                                            <td data-title="Shipping" style="text-align:right; padding:15px 0;">Free
+                                                Shipping</td>
+                                        </tr>
+                                        <tr class="order-total">
+                                            <th style="padding:20px 0; font-size:18px;">Total</th>
+                                            <td style="text-align:right; padding:20px 0;"><strong><span
+                                                        class="woocommerce-Price-amount amount"
+                                                        style="color:#f7941d; font-size:22px;"><span
+                                                            class="woocommerce-Price-currencySymbol">₹</span><?php echo number_format($total, 2); ?></span></strong>
+                                            </td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+
+                                <div id="payment" class="woocommerce-checkout-payment" style="margin-top:20px;">
+                                    <ul class="wc_payment_methods payment_methods methods"
+                                        style="list-style:none; padding:0; margin:0 0 20px 0;">
+                                        <li class="wc_payment_method payment_method_cod"
+                                            style="padding:15px; border:1px solid #ddd; background:#fff; border-radius:4px; margin-bottom:10px;">
+                                            <input id="payment_method_cod" type="radio" class="input-radio"
+                                                name="payment_method" value="cod" checked="checked" />
+                                            <label for="payment_method_cod"
+                                                style="font-weight:bold; margin-left:10px;">Cash on Delivery</label>
+                                            <div class="payment_box payment_method_cod"
+                                                style="margin-top:10px; color:#666;">
+                                                <p>Pay with cash upon delivery.</p>
+                                            </div>
+                                        </li>
+                                        <li class="wc_payment_method payment_method_qr"
+                                            style="padding:15px; border:1px solid #ddd; background:#fff; border-radius:4px;">
+                                            <input id="payment_method_qr" type="radio" class="input-radio"
+                                                name="payment_method" value="qr_payment" />
+                                            <label for="payment_method_qr"
+                                                style="font-weight:bold; margin-left:10px;">QR Payment (UPI)</label>
+                                            <div class="payment_box payment_method_qr"
+                                                style="margin-top:10px; color:#666;">
+                                                <p>Pay instantly using your UPI app by scanning our QR code. You'll need
+                                                    to enter the UTR number in the next step.</p>
+                                            </div>
+                                            <input type="hidden" name="utr_number" id="hidden_utr_number" value="">
+                                        </li>
+                                    </ul>
+                                    <div class="form-row place-order text-center">
+                                        <input type="submit" class="xb-btn" name="woocommerce_checkout_place_order"
+                                            value="Place order"
+                                            style="width: 100%; border-radius: 4px; padding: 15px; font-size: 18px; margin-top: 20px; text-transform:uppercase; font-weight:bold;" />
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- end checkout-section -->
+</main>
+<!-- main area end  -->
+
+<!-- QR Payment Modal -->
+<div id="qrPaymentModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; z-index:99999;">
+    <div id="qrModalOverlay"
+        style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(4px);">
+    </div>
+    <div
+        style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3); z-index:100000;">
+        <button id="qrModalClose"
+            style="position:absolute; top:15px; right:15px; background:none; border:none; font-size:24px; cursor:pointer; color:#999; line-height:1;">&times;</button>
+        <h3 style="font-family:var(--font-heading); font-size:20px; color:#060606; margin-bottom:10px;">Pay via UPI / QR
+        </h3>
+        <p style="color:#666; font-size:14px; margin-bottom:20px;">Please scan the QR code to pay <strong
+                style="color:#000;">₹<?php echo number_format($total, 2); ?></strong>. Once paid, enter your
+            UTR/Reference number below.</p>
+
+        <div style="background:#f9f9f9; padding:20px; border-radius:8px; margin-bottom:20px; border:1px solid #eaeaea;">
+            <!-- Placeholder QR Image. The user can replace this with actual QR later -->
+            <?php
+            $upi_link = "upi://pay?pa=9699961011@ybl&pn=Protinut&am=" . $total . "&cu=INR";
+            $qr_api_url = "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" . urlencode($upi_link);
+            ?>
+            <img src="<?php echo $qr_api_url; ?>" alt="QR Code Placeholder"
+                style="width:200px; height:200px; border-radius:8px;">
+        </div>
+
+        <div style="text-align:left; margin-bottom:20px;">
+            <label style="display:block; font-size:14px; font-weight:bold; margin-bottom:8px; color:#333;">UTR /
+                Reference Number <span style="color:red">*</span></label>
+            <input type="text" id="utrInput" placeholder="Enter 12-digit UTR No."
+                style="width:100%; padding:12px; border:1px solid #ddd; border-radius:4px; font-size:15px;">
+            <span id="utrError" style="color:red; font-size:12px; display:none; margin-top:5px;">Please enter a valid
+                UTR number.</span>
+        </div>
+
+        <button id="confirmQrPaymentBtn"
+            style="display:block; width:100%; padding:14px 20px; background:var(--color-primary); color:#fff; font-weight:700; font-size:16px; text-transform:uppercase; border:none; border-radius:4px; cursor:pointer; transition:0.3s;">
+            Confirm & Place Order
+        </button>
+    </div>
+</div>
+
+<!-- footer strt -->
+<footer class="position-top bg_img pb-70" data-background="assets/img/bg/footer_bg.png">
+    <div class="container">
+        <div id="contact" class="contact pb-100">
+            <div class="row">
+                <div class="col-lg-7">
+                    <div class="xb-contact contact-mt--255">
+                        <div class="contact-title mb-35">
+                            <span><img src="assets/img/icon/directbox-notif.svg" alt="">Contact Us</span>
+                            <h3>Do you have questions or went more <br> information?</h3>
+                        </div>
+                        <form class="contact-from" id="contactForm" action="contact_action.php" method="POST">
+                            <div class="row">
+                                <div class="col-lg-6">
+                                    <div class="xb-item--field">
+                                        <span><img src="assets/img/icon/c_user.svg" alt=""></span>
+                                        <input type="text" name="name" placeholder="Your Name" required>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                    <div class="xb-item--field">
+                                        <span><img src="assets/img/icon/c_mail.svg" alt=""></span>
+                                        <input type="email" name="email" placeholder="Your Email" required>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="xb-item--field">
+                                        <span><img src="assets/img/icon/c_call.svg" alt=""></span>
+                                        <input type="text" name="phone" placeholder="+91 081 0256 023">
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="xb-item--field">
+                                        <span><img src="assets/img/icon/c_message.svg" alt=""></span>
+                                        <textarea name="message" cols="30" rows="10" placeholder="Write Your Message..."
+                                            required></textarea>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <button class="thm-btn thm-btn--black" type="submit">Send Message</button>
+                                    <div id="contactFeedback" class="mt-2" style="display:none;"></div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-lg-5">
+                    <div class="contact-info contact-mt--255 mt-md-30">
+                        <div class="xb-item--head">
+                            <div class="xb-item--address">
+                                <h3><img src="assets/img/icon/location.svg" alt="">our address</h3>
+                                <p>100 Orchard st, New <br> York,NY 100025 USA</p>
+                            </div>
+                            <div class="xb-item--open">
+                                <p>Monday - Friday <br>08:00AM - 05:00PM</p>
+                                <a href="mailto:support@protinut.com"><img src="assets/img/icon/sms-tracking.svg"
+                                        alt="">support@protinut.com</a>
+                            </div>
+                            <ul class="xb-item--social ul_li mt-30">
+                                <li><a href="#!"><i class="fab fa-telegram-plane"></i></a></li>
+                                <li><a href="#!"><i class="fab fa-whatsapp"></i></a></li>
+                                <li><a href="#!"><i class="fab fa-facebook-f"></i></a></li>
+                            </ul>
+                        </div>
+                        <div class="xb-item--cta" data-background="assets/img/bg/cta_bg.jpg">
+                            <p>Our help desk is a vailable for you <br> every day, 07:00AM - 10:00PM</p>
+                            <h3>+91 081 256 023</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer-inner">
+            <div class="footer-logo mb-25 text-center">
+                <a href="index.php" class="site-logo-text">Protinut</a>
+            </div>
+            <div class="sec-title sec-title--white text-center mb-50">
+                <h2 class="title">in a healthy body, healthy mind</h2>
+            </div>
+            <ul class="footer-nav ul_li_center">
+                <li><a href="#!">all products</a></li>
+                <li><a href="#!">track order</a></li>
+                <li><a href="#!">my account</a></li>
+                <li><a href="#!">gift cards</a></li>
+                <li><a href="#!">our story</a></li>
+                <li><a href="#!">careers</a></li>
+                <li><a href="#!">contact</a></li>
+            </ul>
+            <div class="footer-bottom mt-50 ul_li_between">
+                <div class="footer-copyright mt-30">Copyright © 2024 Protinut All rights reserved.</div>
+                <ul class="footer-links ul_li mt-30">
+                    <li><a href="#!">terms of conditions</a></li>
+                    <li><a href="#!">privacy policy</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</footer>
+<!-- footer end -->
+
+</div>
+
+<!-- jquery include -->
+<script src="assets/js/jquery-3.7.1.min.js"></script>
+<script src="assets/js/bootstrap.bundle.min.js"></script>
+<script src="assets/js/swiper.min.js"></script>
+<script src="assets/js/wow.min.js"></script>
+<script src="assets/js/jquery.magnific-popup.min.js"></script>
+<script src="assets/js/touchspin.js"></script>
+<script src="assets/js/jquery-ui.min.js"></script>
+<script src="assets/js/jquery.inview.min.js"></script>
+<script src="assets/js/jquery.easing.js"></script>
+<script src="assets/js/scrollspy.js"></script>
+<script src="assets/js/main.js"></script>
+
+<script>
+    $(document).ready(function () {
+        const savedData = <?php echo json_encode([
+            'f_name' => $f_name,
+            'l_name' => $l_name,
+            'email' => $user['email'] ?? '',
+            'phone' => $user['phone'] ?? '',
+            'country' => $user['country'] ?? 'IN',
+            'address' => $user['address'] ?? '',
+            'city' => $user['city'] ?? '',
+            'postcode' => $user['postcode'] ?? ''
+        ]); ?>;
+
+        $('input[name="address_option"]').on('change', function () {
+            if ($(this).val() === 'custom') {
+                $('input[name="billing_first_name"]').val('');
+                $('input[name="billing_last_name"]').val('');
+                $('input[name="billing_email"]').val('');
+                $('input[name="billing_phone"]').val('');
+                $('#billing_country').val('');
+                $('input[name="billing_address_1"]').val('');
+                $('input[name="billing_city"]').val('');
+                $('input[name="billing_postcode"]').val('');
+            } else {
+                $('input[name="billing_first_name"]').val(savedData.f_name);
+                $('input[name="billing_last_name"]').val(savedData.l_name);
+                $('input[name="billing_email"]').val(savedData.email);
+                $('input[name="billing_phone"]').val(savedData.phone);
+                $('#billing_country').val(savedData.country);
+                $('input[name="billing_address_1"]').val(savedData.address);
+                $('input[name="billing_city"]').val(savedData.city);
+                $('input[name="billing_postcode"]').val(savedData.postcode);
+            }
+        });
+
+        var checkoutForm = $('form.checkout');
+
+        checkoutForm.on('submit', function (e) {
+            var selectedMethod = $('input[name="payment_method"]:checked').val();
+
+            // If QR payment is selected and UTR has not been populated yet
+            if (selectedMethod === 'qr_payment' && $('#hidden_utr_number').val() === '') {
+                e.preventDefault(); // Stop normal form submission
+
+                // Validate billing fields using basic HTML5 check
+                if (!checkoutForm[0].checkValidity()) {
+                    checkoutForm[0].reportValidity();
+                    return;
+                }
+
+                // Open the QR Modal
+                $('#qrPaymentModal').fadeIn();
+            }
+        });
+
+        // Close Modal
+        $('#qrModalClose, #qrModalOverlay').on('click', function () {
+            $('#qrPaymentModal').fadeOut();
+        });
+
+        // Confirm Payment
+        $('#confirmQrPaymentBtn').on('click', function () {
+            var utr = $('#utrInput').val().trim();
+            if (utr === '') {
+                $('#utrError').show();
+            } else {
+                $('#utrError').hide();
+                // Populate the hidden input in the main form
+                $('#hidden_utr_number').val(utr);
+                // Close modal
+                $('#qrPaymentModal').fadeOut();
+                // Resubmit form programmatically
+                checkoutForm[0].submit();
+            }
+        });
+
+        // Toggle Payment Box Descriptions
+        $('input[name="payment_method"]').on('change', function () {
+            $('.payment_box').slideUp();
+            $('.payment_box.payment_method_' + $(this).val()).slideDown();
+        });
+
+        // Ensure the correct payment box is shown on load
+        $('.payment_box').hide();
+        $('.payment_box.payment_method_' + $('input[name="payment_method"]:checked').val()).show();
+    });
+</script>
+
+</body>
+
+</html>
